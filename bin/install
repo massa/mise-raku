@@ -31,8 +31,55 @@ build_and_install_rakudo() {
   make install -j"${ASDF_CONCURRENCY:-1}"
 }
 
+install_zef_manually() {
+  export PATH="$ASDF_INSTALL_PATH/share/perl6/site/bin":"$ASDF_INSTALL_PATH/bin":$PATH
+
+  local tmp_dir="$ASDF_DOWNLOAD_PATH/tmp_zef"
+
+  # Create temporary directory if it doesn't exist
+  mkdir -p "$tmp_dir"
+
+  echo "Installing Zef to $ASDF_INSTALL_PATH"
+
+  # Clone the Zef repository into the temporary directory
+  git clone https://github.com/ugexe/zef.git "$tmp_dir"
+
+  # Change directory to the temporary directory
+  cd "$tmp_dir"
+
+  # Install Zef using raku
+  raku -I. bin/zef install .
+
+  # Change back to the original directory
+  cd "$ASDF_INSTALL_PATH"
+
+  echo "Zef installation complete!"
+
+  # Clean up the temporary directory
+  rm -rf "$tmp_dir"
+}
+
+install_default_raku_modules() {
+  export PATH="$ASDF_INSTALL_PATH/share/perl6/site/bin":"$ASDF_INSTALL_PATH/bin":$PATH
+
+  while read line; do
+    line="${line##+([[:space:]])}"
+    line="${line###*}"
+    line="${line%%+([[:space:]])}"
+    if test -n "$line"; then
+      declare -a params
+      params=($line)
+      echo "Package installation for ${params[@]}..."
+      zef install ${params[*]}
+    fi
+  done < "$HOME/.default-raku-packages"
+}
+
 if [ ${ASDF_RAKU_BUILD:-} ]; then
   build_and_install_rakudo "$ASDF_DOWNLOAD_PATH" "$ASDF_INSTALL_PATH" "$ASDF_INSTALL_VERSION"
+  install_zef_manually
 else
   install_rakudo "$ASDF_DOWNLOAD_PATH" "$ASDF_INSTALL_PATH" "$ASDF_INSTALL_VERSION"
 fi
+
+install_default_raku_modules
